@@ -179,14 +179,9 @@ public class Word
         IsHidden = true; // Set the word to hidden
     }
 }
-
-
-
-
-
 /*
  * Extra Features
- * 1.  I add a `ScriptureLibrary` class that keeps a list of scriptures.
+ * 1.  I add a `ScriptureLibrary` that keeps a list of scriptures.
  *    - Scriptures are loaded from `scriptures.txt`file, so I can update or add more scriptures without changing the code.
  *    - The program shows scriptures random, not just one, making it fun for practice.
  * 2. -Handles Multiple Verses
