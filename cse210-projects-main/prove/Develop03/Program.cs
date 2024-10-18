@@ -1,191 +1,182 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 public class Program
 {
     public static void Main(string[] args)
     {
         // Load scriptures from a file
-        ScriptureLibrary library = new ScriptureLibrary("scriptures.txt");
-        // Get a random scripture
-        Scripture scripture = library.GetRandomScripture();
+        List<Scripture> scriptures = LoadScripturesFromFile("scriptures.txt");
         
-        // Show the scripture
-        scripture.Display();
-    }
-}
-
-// Class to manage multiple scriptures
-public class ScriptureLibrary
-{
-    private List<Scripture> _scriptures; // List to store scriptures
-
-    // Load scriptures from a file
-    public ScriptureLibrary(string filePath)
-    {
-        _scriptures = new List<Scripture>();
-        LoadScripturesFromFile(filePath); // Load scriptures
-    }
-
-    // Read scriptures from the file
-    private void LoadScripturesFromFile(string filePath)
-    {
-        foreach (var line in File.ReadLines(filePath)) // Read each line
+        if (scriptures.Count == 0)
         {
-            // Split line into reference and text
-            var parts = line.Split('|');
-            if (parts.Length == 2) 
+            Console.WriteLine("No scriptures found in the file.");
+            return;
+        }
+
+        // Choose a random scripture to display
+        Random random = new Random();
+        Scripture selectedScripture = scriptures[random.Next(scriptures.Count)];
+
+        // Display the selected scripture
+        Console.Clear();
+        selectedScripture.Display();
+
+        while (true)
+        {
+            Console.WriteLine("Press Enter to hide words or type 'quit' to exit.");
+            string input = Console.ReadLine();
+
+            if (input?.ToLower() == "quit")
+                break;
+
+            if (!selectedScripture.HideRandomWords(3))
             {
-                // Add scripture to the list
-                _scriptures.Add(new Scripture(parts[0], parts[1]));
+                Console.WriteLine("All words are hidden. Well done!");
+                break;
             }
+
+            Console.Clear();
+            selectedScripture.Display();
         }
     }
 
-    // Get a random scripture from the list
-    public Scripture GetRandomScripture()
+    // Method to load scriptures from a file
+    private static List<Scripture> LoadScripturesFromFile(string filePath)
     {
-        Random random = new Random(); // Create random number generator
-        return _scriptures[random.Next(_scriptures.Count)]; // Return random scripture
+        List<Scripture> scriptures = new List<Scripture>();
+
+        try
+        {
+            foreach (string line in File.ReadLines(filePath))
+            {
+                string[] parts = line.Split('|');
+                if (parts.Length == 2)
+                {
+                    scriptures.Add(new Scripture(parts[0], parts[1]));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading scriptures: {ex.Message}");
+        }
+
+        return scriptures;
     }
 }
 
-// Class to represent a scripture
+// Class to represent a scripture with a reference and text
 public class Scripture
 {
     private Reference _reference; // Holds reference details (book, chapter, verse)
     private List<Word> _words; // List of words in the scripture
+    private Random _random = new Random(); // Random number generator for hiding words
+
     public Scripture(string referenceText, string text)
     {
-        _reference = new Reference(referenceText); // Create reference
-        _words = new List<Word>(); 
-        
-    
-        foreach (var word in text.Split(' '))
-        {
-            _words.Add(new Word(word));
-        }
+        _reference = new Reference(referenceText);
+        _words = text.Split(' ').Select(word => new Word(word)).ToList();
     }
 
     // Display the scripture
     public void Display()
     {
-        Console.Clear(); // Clear screen
-        Console.WriteLine(_reference.GetReferenceText()); // Show reference
+        Console.WriteLine(_reference.ToString());
 
-        // Show each word or "___" if hidden
-        foreach (var word in _words)
+        foreach (Word word in _words)
         {
             Console.Write(word.IsHidden ? "___ " : word.Text + " ");
         }
 
         Console.WriteLine(); // New line
-        Console.WriteLine("Press Enter to hide words or type 'quit' to exit.");
-        
-        var input = Console.ReadLine(); // Get user input
-        if (input?.ToLower() == "quit") // If user types "quit"
-        {
-            return; // Stop showing scripture
-        }
-
-        HideRandomWords(); // Hide some words
-        Display(); // Show again
     }
 
-    // Randomly hide some words
-    private void HideRandomWords()
+    // Randomly hide words and return false if all words are hidden
+    public bool HideRandomWords(int count)
     {
-        Random random = new Random(); // Random number generator
-        for (int i = 0; i < 2; i++) // Hide 3 words
+        List<Word> visibleWords = _words.Where(word => !word.IsHidden).ToList();
+
+        if (visibleWords.Count == 0)
+            return false;
+
+        for (int i = 0; i < count && visibleWords.Count > 0; i++)
         {
-            int index = random.Next(_words.Count); 
-            _words[index].Hide(); 
+            Word wordToHide = visibleWords[_random.Next(visibleWords.Count)];
+            wordToHide.Hide();
+            visibleWords.Remove(wordToHide);
         }
+
+        return true;
     }
 }
 
-// Class to represent a scripture reference (book, chapter, verse)
+// Class to represent the reference of a scripture
 public class Reference
 {
-    private string _book; // Book name
-    private int _chapter; // Chapter number
-    private int _startVerse; // Starting verse
-    private int? _endVerse; // ending verse 
+    private string _book;
+    private int _chapter;
+    private int _startVerse;
+    private int? _endVerse;
+
     public Reference(string referenceText)
     {
         ParseReference(referenceText);
     }
-   private void ParseReference(string referenceText)
-{
-    var parts = referenceText.Split(' ');
 
-    // Check if the first part of the scripture is a number 
-    if (int.TryParse(parts[0], out int bookNumber))
+    // Parse the reference text
+    private void ParseReference(string referenceText)
     {
-        // If the first part is a number, the book name consists of the first two parts
-        _book = parts[0] + " " + parts[1]; // Combine both parts for the book name
-        
-        var chapterVerse = parts[2].Split(':');
-        _chapter = int.Parse(chapterVerse[0]);
+        string[] parts = referenceText.Split(' ');
 
-        // Handle verse ranges or single verses
-        var verses = chapterVerse[1].Split('-');
-        _startVerse = int.Parse(verses[0]);
-
-        if (verses.Length == 2)
+        if (int.TryParse(parts[0], out _))
         {
-            _endVerse = int.Parse(verses[1]);
+            _book = $"{parts[0]} {parts[1]}";
+            ParseChapterAndVerse(parts[2]);
+        }
+        else
+        {
+            _book = parts[0];
+            ParseChapterAndVerse(parts[1]);
         }
     }
-    else
+
+    private void ParseChapterAndVerse(string chapterVerse)
     {
-      
-        _book = parts[0];
-        var chapterVerse = parts[1].Split(':');
-        _chapter = int.Parse(chapterVerse[0]);
+        string[] chapterParts = chapterVerse.Split(':');
+        _chapter = int.Parse(chapterParts[0]);
 
-        var verses = chapterVerse[1].Split('-');
-        _startVerse = int.Parse(verses[0]);
+        string[] verseParts = chapterParts[1].Split('-');
+        _startVerse = int.Parse(verseParts[0]);
 
-        if (verses.Length == 2)
+        if (verseParts.Length == 2)
         {
-            _endVerse = int.Parse(verses[1]);
+            _endVerse = int.Parse(verseParts[1]);
         }
     }
-}
-    // Return the reference as a string
-    public string GetReferenceText()
+
+    public override string ToString()
     {
-        // Return reference with or without verse range
         return _endVerse.HasValue ? $"{_book} {_chapter}:{_startVerse}-{_endVerse}" : $"{_book} {_chapter}:{_startVerse}";
     }
 }
 
-// Class to represent a word in the scripture
+// Class to represent a single word in the scripture
 public class Word
 {
-    public string Text { get; private set; } 
-    public bool IsHidden { get; private set; } 
+    public string Text { get; private set; }
+    public bool IsHidden { get; private set; }
+
     public Word(string text)
     {
-        Text = text; // Set the word text
-        IsHidden = false; // Word starts as visible
+        Text = text;
+        IsHidden = false;
     }
 
-    // Hide the word
     public void Hide()
     {
-        IsHidden = true; // Set the word to hidden
+        IsHidden = true;
     }
 }
-/*
- * Extra Features
- * 1.  I add a `ScriptureLibrary` that keeps a list of scriptures.
- *    - Scriptures are loaded from `scriptures.txt`file, so I can update or add more scriptures without changing the code.
- *    - The program shows scriptures random, not just one, making it fun for practice.
- * 2. -Handles Multiple Verses
- * 3. -Program Ends Automatically: Besides letting the user type "quit" to exit, the program also stops by itself when all words in the scripture are hidden.
- */
-
-// T_T DONEEEE!!!
