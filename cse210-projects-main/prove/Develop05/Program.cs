@@ -1,40 +1,80 @@
+/*
+    EXCEEDING REQUIREMENTS:
+
+    1. Added a new activity: "Meditation Activity".
+       - Helps users focus on breathing and positive thoughts.
+
+    2. Implemented activity tracking:
+       - Tracks how many times each activity was done and saves to "activityLog.txt".
+       - Log is loaded at the start to keep track across sessions.
+
+    3. Enhanced user experience with file saving/loading:
+       - Saves and loads data so users can continue their mindfulness journey later.
+*/
+
 using System;
 using System.Threading;
+using System.IO; // For saving and loading log files
+using System.Collections.Generic;
 
 class Program
 {
+    // Keeps track of how many times each activity was done
+    private static Dictionary<string, int> activityLog = new Dictionary<string, int>();
+
     static void Main(string[] args)
     {
-        // Main menu loop
+        // Load log when program starts
+        LoadActivityLog();
+
         while (true)
         {
-            // Display the main menu options
+            // Main menu options
             Console.WriteLine("Mindfulness Program");
             Console.WriteLine("1. Breathing Activity");
             Console.WriteLine("2. Reflection Activity");
             Console.WriteLine("3. Listing Activity");
-            Console.WriteLine("4. Quit");
+            Console.WriteLine("4. Gratitude Activity");
+            Console.WriteLine("5. Meditation Activity");
+            Console.WriteLine("6. Quit");
             Console.Write("Choose an option: ");
             string choice = Console.ReadLine();
 
+            // Run selected activity
             if (choice == "1")
             {
                 BreathingActivity breathingActivity = new BreathingActivity();
                 breathingActivity.StartActivity();
+                LogActivity("Breathing Activity"); // Log the activity
             }
             else if (choice == "2")
             {
                 ReflectionActivity reflectionActivity = new ReflectionActivity();
                 reflectionActivity.StartActivity();
+                LogActivity("Reflection Activity");
             }
             else if (choice == "3")
             {
                 ListingActivity listingActivity = new ListingActivity();
                 listingActivity.StartActivity();
+                LogActivity("Listing Activity");
             }
             else if (choice == "4")
             {
-                // Exit the program
+                GratitudeActivity gratitudeActivity = new GratitudeActivity();
+                gratitudeActivity.StartActivity();
+                LogActivity("Gratitude Activity");
+            }
+            else if (choice == "5")
+            {
+                MeditationActivity meditationActivity = new MeditationActivity();
+                meditationActivity.StartActivity();
+                LogActivity("Meditation Activity");
+            }
+            else if (choice == "6")
+            {
+                // Save log before quitting
+                SaveActivityLog();
                 Console.WriteLine("Exiting program...");
                 break;
             }
@@ -44,152 +84,265 @@ class Program
             }
         }
     }
+
+    // Logs how many times an activity was done
+    private static void LogActivity(string activityName)
+    {
+        if (activityLog.ContainsKey(activityName))
+        {
+            activityLog[activityName]++;
+        }
+        else
+        {
+            activityLog[activityName] = 1;
+        }
+        // Show the user their progress
+        Console.WriteLine($"{activityName} has been done {activityLog[activityName]} times during this session.");
+    }
+
+    // Saves the log to a file
+    private static void SaveActivityLog()
+    {
+        using (StreamWriter writer = new StreamWriter("activityLog.txt"))
+        {
+            foreach (var entry in activityLog)
+            {
+                writer.WriteLine($"{entry.Key}:{entry.Value}");
+            }
+        }
+    }
+
+    // Loads the log from a file if it exists
+    private static void LoadActivityLog()
+    {
+        if (File.Exists("activityLog.txt"))
+        {
+            try
+            {
+                using (StreamReader reader = new StreamReader("activityLog.txt"))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        var parts = line.Split(':');
+                        if (parts.Length == 2 && int.TryParse(parts[1], out int count))
+                        {
+                            activityLog[parts[0]] = count;
+                        }
+                    }
+                }
+            }
+            catch (IOException e)
+            {
+                Console.WriteLine($"Error loading activity log: {e.Message}");
+            }
+        }
+    }
 }
 
-// Base class for all activities (common attributes and methods)
+// Base class for all activities
 abstract class MindfulnessActivity
 {
     protected string activityName;
     protected string description;
     protected int duration;
 
-    // This method handles starting the activity
+    // Start the activity
     public void StartActivity()
     {
         DisplayStartingMessage();
-        RunActivity();
+        RunActivity(); // Runs specific activity
         DisplayEndingMessage();
     }
 
-    // Display the start message and ask for duration
+    // Shows start message and asks for duration
     private void DisplayStartingMessage()
     {
         Console.WriteLine($"Starting {activityName}: {description}");
-        Console.Write("Enter the duration in seconds: ");
-        duration = int.Parse(Console.ReadLine());
-        Console.WriteLine("Prepare to begin...");
-        Pause(3); // Pause before starting the activity
+        bool validInput = false;
+        while (!validInput)
+        {
+            Console.Write("Enter the duration in seconds: ");
+            if (int.TryParse(Console.ReadLine(), out duration) && duration > 0)
+            {
+                validInput = true;
+            }
+            else
+            {
+                Console.WriteLine("Please enter a valid number.");
+            }
+        }
+        Console.WriteLine("Prepare to begin");
+        Pause(4); // Pause before starting
     }
 
-    // Display a generic ending message
+    // Shows end message after the activity
     private void DisplayEndingMessage()
     {
-        Console.WriteLine($"Good job! You have completed the {activityName} for {duration} seconds.");
+        Console.WriteLine($"Good job! You finished the {activityName} for {duration} seconds.");
         Pause(3);
     }
 
-    // This method pauses and shows an animation
+    // Simple pause with spinner animation
     protected void Pause(int seconds)
     {
-        for (int i = 0; i < seconds; i++)
+        string[] spinner = { "|", "/", "-", "\\" };
+        for (int i = 0; i < seconds * 4; i++)
         {
-            Console.Write(". ");
-            Thread.Sleep(1000); // 1-second delay
+            Console.Write(spinner[i % spinner.Length] + "\r");
+            Thread.Sleep(250); // 4 spinner moves per second
         }
         Console.WriteLine();
     }
-
-    // Abstract method to run the specific activity (must be implemented by derived classes)
     protected abstract void RunActivity();
 }
 
-// Derived class for the Breathing Activity
+// Breathing activity class
 class BreathingActivity : MindfulnessActivity
 {
     public BreathingActivity()
     {
         activityName = "Breathing Activity";
-        description = "This activity will help you relax by guiding you through deep breathing.";
+        description = "Helps you relax by guiding you through deep breathing.";
     }
 
-    // Implement the breathing exercise
+    // Breathing exercise
     protected override void RunActivity()
     {
-        for (int i = 0; i < duration; i += 6) // Breathing cycle (2 counts per cycle)
+        for (int i = 0; i < duration; i += 19) // Breathing cycle
         {
             Console.WriteLine("Breathe in...");
-            Pause(3); // Simulate breathing in for 3 seconds
+            NumericCountdown(4); // 4 seconds inhale
+            Console.WriteLine("Hold your breath for 7 seconds...");
+            NumericCountdown(7); // Hold for 7 seconds
             Console.WriteLine("Breathe out...");
-            Pause(3); // Simulate breathing out for 3 seconds
+            NumericCountdown(8); // 8 seconds exhale
         }
+    }
+
+    // Countdown for breathing
+    private void NumericCountdown(int seconds)
+    {
+        for (int i = seconds; i > 0; i--)
+        {
+            Console.Write($"{i} ");
+            Thread.Sleep(1000);
+        }
+        Console.WriteLine();
     }
 }
 
-// Derived class for the Reflection Activity
+// Meditation activity class
+class MeditationActivity : MindfulnessActivity
+{
+    public MeditationActivity()
+    {
+        activityName = "Meditation Activity";
+        description = "Guides you through calm breathing and focus.";
+    }
+
+    // Meditation exercise
+    protected override void RunActivity()
+    {
+        Console.WriteLine("Close your eyes and focus on your breath.");
+        Pause(5);
+        Console.WriteLine("Now, think about a positive thought or mantra.");
+        Pause(10);
+        Console.WriteLine("Continue focusing until the session ends...");
+        Pause(duration - 15); // Continue meditation for remaining time
+    }
+}
+
+// Reflection activity class
 class ReflectionActivity : MindfulnessActivity
 {
     private string[] prompts = {
-        "Think of a time when you stood up for someone else.",
-        "Think of a time when you did something really difficult.",
-        "Think of a time when you helped someone in need.",
-        "Think of a time when you did something truly selfless."
+        "Think of a time when you stood up for someone.",
+        "Think of a time when you did something really hard.",
+        "Think of a time when you helped someone.",
+        "Think of a time when you were selfless."
     };
 
     private string[] questions = {
-        "Why was this experience meaningful to you?",
-        "Have you ever done anything like this before?",
-        "How did you get started?",
-        "How did you feel when it was complete?",
-        "What made this time different than other times?",
-        "What is your favorite thing about this experience?",
-        "What did you learn from this experience?",
-        "How can you apply this to other areas of your life?"
+        "Why was this meaningful?",
+        "Have you done this before?",
+        "How did you start?",
+        "How did you feel when it was done?",
+        "What made this time special?",
+        "What is your favorite part of this?",
+        "What can you learn from this?"
     };
 
     public ReflectionActivity()
     {
         activityName = "Reflection Activity";
-        description = "This activity helps you reflect on times when you showed strength or resilience.";
+        description = "Helps you reflect on meaningful moments.";
     }
 
-    // Implement the reflection exercise
+    // Reflection exercise
     protected override void RunActivity()
     {
         Random random = new Random();
-        Console.WriteLine(prompts[random.Next(prompts.Length)]);
-        Pause(2);
+        string prompt = prompts[random.Next(prompts.Length)];
+        Console.WriteLine(prompt);
+        Pause(5);
 
-        for (int i = 0; i < duration; i += 10) // Display questions in intervals
+        foreach (string question in questions)
         {
-            Console.WriteLine(questions[random.Next(questions.Length)]);
-            Pause(5);
+            Console.WriteLine(question);
+            Pause(5); // Give time to think
         }
     }
 }
 
-// Derived class for the Listing Activity
+// Listing activity class
 class ListingActivity : MindfulnessActivity
 {
     private string[] prompts = {
-        "Who are people that you appreciate?",
-        "What are your personal strengths?",
-        "Who have you helped recently?",
-        "When have you felt peace recently?",
-        "Who are some of your personal heroes?"
+        "List as many strengths as you can.",
+        "List your personal achievements.",
+        "List goals for the next 5 years."
     };
 
     public ListingActivity()
     {
         activityName = "Listing Activity";
-        description = "This activity helps you reflect on the good things in your life.";
+        description = "Helps you focus on listing strengths, achievements, and goals.";
     }
 
-    // Implement the listing exercise
+    // Listing exercise
     protected override void RunActivity()
     {
         Random random = new Random();
-        Console.WriteLine(prompts[random.Next(prompts.Length)]);
+        string prompt = prompts[random.Next(prompts.Length)];
+        Console.WriteLine(prompt);
         Pause(3);
+        Console.WriteLine("Start listing your thoughts:");
+        Pause(duration); // Simulate listing
+    }
+}
 
-        Console.WriteLine("Start listing items now:");
-        int itemCount = 0;
-        for (int i = 0; i < duration; i += 5) // 5 seconds per item
-        {
-            Console.Write("Item: ");
-            Console.ReadLine(); // Read user input for each item
-            itemCount++;
-        }
+// Gratitude activity class
+class GratitudeActivity : MindfulnessActivity
+{
+    private string[] prompts = {
+        "Think of three things you're grateful for today.",
+        "Consider the people who make your life better.",
+        "Reflect on opportunities you've had."
+    };
 
-        Console.WriteLine($"You listed {itemCount} items.");
+    public GratitudeActivity()
+    {
+        activityName = "Gratitude Activity";
+        description = "Helps you think about what you're thankful for.";
+    }
+
+    // Gratitude exercise
+    protected override void RunActivity()
+    {
+        Random random = new Random();
+        string prompt = prompts[random.Next(prompts.Length)];
+        Console.WriteLine(prompt);
+        Pause(duration); // Simulate reflection time
     }
 }
