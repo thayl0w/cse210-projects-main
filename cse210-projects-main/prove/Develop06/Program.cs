@@ -364,8 +364,6 @@ class Program
 
 
 /*
- * Comment Report on Exceeding Requirements
- * 
  * 1. Gamification:
  *    - Added goal streak tracking. Users earn extra points for completing goals in a row.
  * 
